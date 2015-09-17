@@ -2,6 +2,11 @@
 
 set -x
 
+script_root=$(cd $(dirname $0) && pwd)
+
+repo_root=https://raw.githubusercontent.com/mao172/cc-installer
+branch_nm=master
+
 hw_platform=$(uname -i)
 
 if [ -f /etc/redhat-release ]; then
@@ -17,52 +22,25 @@ ge() {
 }
 
 packer_install() {
-  local version=0.7.5
-  local install_dir=/opt/packer
-  if [ ! -d ${install_dir} ]; then
-    mkdir -p ${install_dir}
-  fi
-
-  if [ ! -f ${install_dir}/packer ]; then
-    file_name="packer_${version}_linux_386.zip"
-    if [ "${hw_platform}" == "x86_64" ]; then
-      file_name="packer_${version}_linux_amd64.zip"
-    fi
-
-    cd ${install_dir}
-    wget -N https://dl.bintray.com/mitchellh/packer/${file_name} || return $?
-    unzip ${file_name} -d /opt/packer
+  if [ -f ${script_root}/lib/install_packer.sh ]; then
+    cat ${script_root}/lib/install_packer.sh | bash -s -- -v 0.7.5
+  else
+    curl -L ${repo_root}/${branch_nm}/lib/install_packer.sh | bash -s -- -v 0.7.5
   fi
 }
 
 postgresql_install() {
   local version=9.4
-  local os_name=${platform,,}
-  local platform_family=redhat
-  local platform=rhel-6-${hw_platform}
-  if ge ${platform_version} 7; then
-    platform=rhel-7-${hw_platform}
+
+  if [ -f ${script_root}/lib/install_postgresql.sh ]; then
+    cat ${script_root}/lib/install_postgresql.sh | bash -s -- -v ${version}
+  else
+    curl -L ${repo_root}/${branch_nm}/lib/install_postgresql.sh | bash -s -- -v ${version}
   fi
-  local file_name="pgdg-${os_name}${version/./}-${version}-1.noarch.rpm"
-  local pkg_name=postgresql${version/./}
-  local svc_name=postgresql-${version}
-
-#  http://yum.postgresql.org/9.4/redhat/rhel-6-x86_64/pgdg-centos94-9.4-1.noarch.rpm
-#  http://yum.postgresql.org/9.4/redhat/rhel-6-i386/pgdg-centos94-9.4-1.noarch.rpm
-  yum install -y http://yum.postgresql.org/${version}/${platform_family}/${platform}/${file_name}
-  yum install -y ${pkg_name}-server ${pkg_name}-contrib ${pkg_name}-devel
-  service ${svc_name} initdb
-
-  sed -i \
-    -e 's@^\(host *all *all *127.0.0.1\/32 *\).*@\1md5@' \
-    -e 's@^\(host *all *all *::1\/128 *\).*@\1md5@' \
-    /var/lib/pgsql/${version}/data/pg_hba.conf
-
-  service ${svc_name} start
 
   export PATH=$PATH:/usr/pgsql-${version}/bin
   expect -c "
-  spawn sudo -u postgres createuser --createdb --encrypted --pwprompt ${db_user}
+  spawn sudo -u postgres LANG=C createuser --createdb --encrypted --pwprompt ${db_user}
   expect \"Enter password for new role:\"
   send -- \"${db_pswd}\n\"
   expect \"Enter it again:\"
@@ -84,7 +62,7 @@ ruby_install() {
     git clone https://github.com/sstephenson/ruby-build.git /usr/local/rbenv/plugins/ruby-build
   fi
 
-  rbenv init -
+#  rbenv init -
   tee /etc/profile.d/rbenv.sh > /dev/null <<'EOF'
 export RBENV_ROOT=/usr/local/rbenv
 export PATH=$PATH:$RBENV_ROOT/bin
@@ -92,10 +70,10 @@ eval "$(rbenv init -)"
 EOF
 
   source /etc/profile.d/rbenv.sh
-  rbenv install ${version} || return $?
+  rbenv install ${version} #|| return $?
   rbenv global ${version}
   rbenv rehash
-  gem install bundler
+  gem install bundler || return $?
 }
 
 cc_install() {
@@ -125,6 +103,13 @@ fi
 
 db_user="cc_user"
 db_pswd="cc_pswd"
+
+while getopts v: OPT
+do
+  case $OPT in
+    "v" ) VERSION="$OPTARG";;
+  esac
+done
 
 packer_install
 
