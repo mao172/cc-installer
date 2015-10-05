@@ -83,6 +83,9 @@ cc_install() {
 
   git clone https://github.com/cloudconductor/cloud_conductor.git /opt/cloud_conductor
   cd /opt/cloud_conductor
+  if ! [ "${branch}" == "" ]; then
+    git checkout ${branch}
+  fi
   bundle install
 
   cp config/config.rb.smp config/config.rb
@@ -101,13 +104,24 @@ if ! which expect > /dev/null 2>&1; then
   yum install -y expect
 fi
 
-db_user="cc_user"
-db_pswd="cc_pswd"
+db_user="conductor"
+db_pswd="password"
 
-while getopts v: OPT
+branch=""
+config_file="${script_root}/config/install.cfg"
+
+while getopts v:b:c: OPT
 do
   case $OPT in
-    "v" ) VERSION="$OPTARG";;
+    "v" ) 
+      VERSION="$OPTARG"
+      ;;
+    "b" )
+      branch="$OPTARG"
+      ;;
+    "c" )
+      config_file="$OPTARG"
+      ;;
   esac
 done
 
