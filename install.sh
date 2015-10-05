@@ -50,6 +50,7 @@ postgresql_install() {
 
 ruby_install() {
   local version=2.1.5
+  local ruby_home=/opt/cloud_conductor/ruby
 
   if ! which git > /dev/null 2>&1; then
     yum install -y git
@@ -57,27 +58,17 @@ ruby_install() {
 
   yum install -y gcc gcc-c++ make patch openssl-devel readline-devel zlib-devel
 
-  if [ ! -d /usr/local/rbenv ]; then
-    git clone https://github.com/sstephenson/rbenv.git /usr/local/rbenv
-    git clone https://github.com/sstephenson/ruby-build.git /usr/local/rbenv/plugins/ruby-build
+  if [ -f ${script_root}/lib/install_ruby.sh ]; then
+    cat ${script_root}/lib/install_ruby.sh | bash -s -- -v ${version} -d ${ruby_home}
+  else
+    curl -L ${repo_root}/${branch_nm}/lib/install_ruby.sh | bash -s -- -v ${version} -d ${ruby_home}
   fi
 
-#  rbenv init -
-  tee /etc/profile.d/rbenv.sh > /dev/null <<'EOF'
-export RBENV_ROOT=/usr/local/rbenv
-export PATH=$PATH:$RBENV_ROOT/bin
-eval "$(rbenv init -)"
-EOF
-
-  source /etc/profile.d/rbenv.sh
-  rbenv install ${version} #|| return $?
-  rbenv global ${version}
-  rbenv rehash
+  export PATH=$PATH:${ruby_home}/bin
   gem install bundler || return $?
 }
 
 cc_install() {
-  ruby_install || return $?
 
   yum install -y gcc gcc-c++ make patch libxslt-devel libxml2-devel
 
@@ -86,6 +77,8 @@ cc_install() {
   if ! [ "${branch}" == "" ]; then
     git checkout ${branch}
   fi
+
+  ruby_install || return $?
   bundle install
 
   cp config/config.rb.smp config/config.rb
