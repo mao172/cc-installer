@@ -3,9 +3,15 @@
 RUBY_HOME='/usr/local'
 VERSION='2.1.5'
 
+packages_install() {
+  yum install -y gcc gcc-c++ make patch libxslt-devel libxml2-devel wget tar
+}
+
 ruby_install_from_source() {
   local version=$1
   local version_family=${version%.*}
+
+  packages_install
 
   wget http://cache.ruby-lang.org/pub/ruby/${version_family}/ruby-${version}.tar.gz
   tar xfz ruby-${version}.tar.gz 
