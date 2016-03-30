@@ -36,7 +36,7 @@ postgresql_install() {
   export PATH=$PATH:/usr/pgsql-${version}/bin
 
   if ge ${platform_version} 7; then
-    ./postgresql${version/./}-setup initdb
+    /usr/pgsql-${version}/bin/postgresql${version/./}-setup initdb
   else
     service ${svc_name} initdb
   fi

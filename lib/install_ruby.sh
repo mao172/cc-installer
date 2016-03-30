@@ -4,7 +4,15 @@ RUBY_HOME='/usr/local'
 VERSION='2.1.5'
 
 packages_install() {
-  yum install -y gcc gcc-c++ make patch libxslt-devel libxml2-devel wget tar
+  yum install -y gcc gcc-c++ make patch openssl-devel readline-devel zlib-devel libxslt-devel libxml2-devel
+
+  if ! which wget; then
+    yum install -y wget
+  fi
+
+  if ! which tar; then
+    yum install -y tar
+  fi
 }
 
 ruby_install_from_source() {
@@ -21,6 +29,8 @@ ruby_install_from_source() {
   ./configure --prefix=${RUBY_HOME}
   make
   make install
+
+  ${RUBY_HOME}/bin/gem install bundler
 }
 
 ruby_install() {

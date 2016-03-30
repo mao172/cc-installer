@@ -1,0 +1,38 @@
+---
+driver:
+  name: docker
+
+provisioner:
+  name: shell
+  data_path: ./
+
+platforms:
+  - name: centos-6.7
+  - name: centos-7.1
+    driver:
+      privileged: true
+      run_command: "/sbin/init"
+
+transport:
+  username: kitchen
+
+suites:
+  - name: packer_install
+    provisioner:
+      script: ./test/scripts/packer_install.sh
+
+  - name: postgresql_install
+    provisioner:
+      script: ./test/scripts/postgres_install.sh
+
+  - name: db_setup
+    provisioner:
+      script: ./test/scripts/db_setup.sh
+
+  - name: ruby_install
+    provisioner:
+      script: ./test/scripts/ruby_install.sh
+
+  - name: conductor_install
+    provisioner:
+      script: ./test/scripts/cc_install.sh

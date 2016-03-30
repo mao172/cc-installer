@@ -34,56 +34,31 @@ packer_install() {
   fi
 }
 
-postgresql_install() {
+db_setup() {
   local version=9.4
+  local db_user=dbadmin
+  local db_pswd=dbpswd
 
-  if [ -f ${script_root}/lib/install_postgresql.sh ]; then
-    cat ${script_root}/lib/install_postgresql.sh | bash -s -- -v ${version}
+  version=$1
+  db_user=$2
+  db_pswd=$3
+
+  if [ -f ${script_root}/lib/setup_db.sh ]; then
+    cat ${script_root}/lib/setup_db.sh | bash -s -- -v ${version} -u ${db_user} -p ${db_pswd}
   else
-    curl -L ${repo_root}/${branch_nm}/lib/install_postgresql.sh | bash -s -- -v ${version}
+    curl -L ${repo_root}/${branch_nm}/lib/setup_db.sh | bash -s -- -v ${version} -u ${db_user} -p ${db_pswd}
   fi
-
-  export PATH=$PATH:/usr/pgsql-${version}/bin
-}
-
-ruby_install() {
-  local version=2.1.5
-  local ruby_home=/opt/cloud_conductor/ruby
-
-  if ! which git > /dev/null 2>&1; then
-    yum install -y git
-  fi
-
-  if [ ! -d ${ruby_home} ]; then
-    yum install -y gcc gcc-c++ make patch openssl-devel readline-devel zlib-devel
-
-    if [ -f ${script_root}/lib/install_ruby.sh ]; then
-      cat ${script_root}/lib/install_ruby.sh | bash -s -- -v ${version} -d ${ruby_home}
-    else
-      curl -L ${repo_root}/${branch_nm}/lib/install_ruby.sh | bash -s -- -v ${version} -d ${ruby_home}
-    fi
-  fi
-
-  export PATH=$PATH:${ruby_home}/bin
-  gem install bundler || return $?
 }
 
 cc_install() {
   local version=1.1.0
   version=$1
 
-  if [ ! -d ${CC_HOME} ]; then
-    git clone https://github.com/cloudconductor/cloud_conductor.git ${CC_HOME}
+  if [ -f ${script_root}/lib/install_conductor.sh ]; then
+    cat ${script_root}/lib/install_conductor.sh | bash -s -- -v ${version} -d ${CC_HOME}
+  else
+    curl -L ${repo_root}/${branch_nm}/lib/install_conductor.sh | bash -s -- -v ${version} -d ${CC_HOME}
   fi
-
-  cd ${CC_HOME}
-  if ! [ "${branch}" == "" ]; then
-    git checkout ${branch}
-  fi
-
-  ruby_install || return $?
-  bundle install
-
 }
 
 cc_settings() {
@@ -99,25 +74,17 @@ cc_settings() {
   secret_key_base=$(bundle exec rake secret)
   sed -i.org -e "s/secret_key_base: .*/secret_key_base: ${secret_key_base}/g" config/secrets.yml
   sed -i.org -e "s/# config.secret_key = '.*'/config.secret_key = '${secret_key_base}'/" config/initializers/devise.rb
+
+  cc_settings_db
 }
 
-db_settings() {
-  expect -c "
-  spawn sudo -u postgres LANG=C createuser --createdb --encrypted --pwprompt ${db_user}
-  expect \"Enter password for new role:\"
-  send -- \"${db_pswd}\n\"
-  expect \"Enter it again:\"
-  send -- \"${db_pswd}\n\"
-  expect \"]$ \"
-  "
-
+cc_settings_db() {
   cd ${CC_HOME}
   cp config/database.yml.smp config/database.yml
   sed -i\
     -e "s/username: .*/username: ${db_user}/g"\
     -e "s/password: .*/password: ${db_pswd}/g"\
     config/database.yml
-
 }
 
 create_db() {
@@ -180,15 +147,13 @@ do
   esac
 done
 
-packer_install 0.8.6
+packer_install 0.9.0
 
-postgresql_install
+db_setup 9.4 $db_user $db_pswd
 
 cc_install 1.1.0
 
 cc_settings
-
-db_settings
 
 create_db
 

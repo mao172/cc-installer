@@ -14,6 +14,12 @@ packer_install() {
   local version=$1
   local install_dir=/opt/packer
 
+  if [ -d ${install_dir} ]; then
+    if [ $(${install_dir}/packer --version) != ${version} ]; then
+      rm -r -f ${install_dir}
+    fi
+  fi
+
   if [ ! -d ${install_dir} ]; then
     mkdir -p ${install_dir}
   fi
@@ -25,12 +31,14 @@ packer_install() {
     fi
 
     cd ${install_dir}
-    wget -N https://dl.bintray.com/mitchellh/packer/${file_name} || return $?
+    wget -N https://releases.hashicorp.com/packer/${version}/${file_name} || return $?
     unzip ${file_name} -d /opt/packer
   fi
 }
 
 VERSION=0.7.5
+
+hw_platform=$(uname -i)
 
 while getopts v: OPT
 do
